@@ -1,0 +1,210 @@
+{
+  "AWSTemplateFormatVersion":"2010-09-09",
+  "Resources":{
+    "Group18LakeWorkflowRole":{
+      "Type":"AWS::IAM::Role",
+      "Properties":{
+        "AssumeRolePolicyDocument":{
+          "Version":"2012-10-17",
+          "Statement":[
+            {
+              "Effect":"Allow",
+              "Principal":{
+              "Service":"glue.amazonaws.com"
+              },
+              "Action":"sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns":[
+          "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+        ],
+        "Path":"/",
+        "Policies":[
+          {
+            "PolicyName":"inline-data-lake-workflow",
+            "PolicyDocument":{
+              "Version":"2012-10-17",
+              "Statement":[
+                {
+                  "Effect":"Allow",
+                  "Action":[
+                    "lakeformation:GetDataAccess",
+                    "lakeformation:GrantPermissions"
+                  ],
+                  "Resource":"*"
+                },
+                {
+                  "Effect":"Allow",
+                  "Action":[
+                    "iam:PassRole"
+                  ],
+                  "Resource":[
+                    "arn:aws:iam::503249568911:role/Group18LakeWorkflowRole"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+     "Group18LakeAdminUser": {
+       "Type": "AWS::IAM::User"
+    },
+    "Group18LakeAdmins": {
+      "Type" : "AWS::LakeFormation::DataLakeSettings",
+      "Properties" : {
+          "Admins" : [
+            {
+              "DataLakePrincipalIdentifier": { "Fn::GetAtt": [
+                                "Group18LakeAdminUser",
+                                "Arn"
+                            ] }
+            }
+          ]
+        }
+    },
+    "Group18LakeAdminRole":{
+      "Type":"AWS::IAM::Role",
+      "Properties":{
+        "AssumeRolePolicyDocument":{
+          "Version":"2012-10-17",
+          "Statement":[
+            {
+              "Effect":"Allow",
+              "Principal":{
+              "Service":"glue.amazonaws.com"
+              },
+              "Action":"sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns":[
+          "arn:aws:iam::aws:policy/AWSLakeFormationDataAdmin",
+          "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess",
+          "arn:aws:iam::aws:policy/CloudWatchLogsReadOnlyAccess",
+          "arn:aws:iam::aws:policy/AmazonAthenaFullAccess"
+        ],
+        "Path":"/",
+        "Policies":[
+          {
+            "PolicyName":"inline-data-lake-admin",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "iam:CreateServiceLinkedRole",
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:AWSServiceName": "lakeformation.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PutRolePolicy"
+                  ],
+                  "Resource": "arn:aws:iam::503249568911:role/aws-service-role/lakeformation.amazonaws.com/AWSServiceRoleForLakeFormationDataAccess"
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName":"inline-data-lake-admin-passrole",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PassRolePermissions",
+                        "Effect": "Allow",
+                        "Action": [
+                            "iam:PassRole"
+                        ],
+                        "Resource": [
+                            "arn:aws:iam::503249568911:role/Group18LakeWorkflowRole"
+                        ]
+                    }
+                ]
+            }
+          },
+          {
+            "PolicyName":"inline-data-lake-admin-grant-cross-account",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "ram:CreateResourceShare"
+                      ],
+                      "Resource": "*",
+                      "Condition": {
+                          "ForAllValues:StringEquals": {
+                              "ram:RequestedResourceType": [
+                                  "glue:Table",
+                                  "glue:Database",
+                                  "glue:Catalog"
+                              ]
+                          }
+                      }
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "ram:UpdateResourceShare",
+                          "ram:DeleteResourceShare"
+                      ],
+                      "Resource": "*",
+                      "Condition": {
+                          "ForAllValues:StringLike": {
+                              "ram:ResourceShareName": [
+                                  "LakeFormation*"
+                              ]
+                          }
+                      }
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "glue:PutResourcePolicy",
+                          "organizations:DescribeOrganization",
+                          "organizations:DescribeAccount",
+                          "ram:Get*",
+                          "ram:List*"
+                      ],
+                      "Resource": "*"
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "organizations:ListRoots",
+                          "organizations:ListAccountsForParent",
+                          "organizations:ListOrganizationalUnitsForParent"
+                      ],
+                      "Resource": "*"
+                  }
+              ]
+            }
+          },
+          {
+            "PolicyName":"inline-data-lake-admin-ram-console",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "ec2:DescribeAvailabilityZones",
+                        "Resource": "*"
+                    }
+                ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
